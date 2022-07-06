@@ -263,4 +263,12 @@ define('FAS_DOPPELTE_BUCHUNGSTYPEN_CHECK', serialize(
 
 // Spezialnoten die am Zeunigs und Diplomasupplement ignoriert werden
 define('ZEUGNISNOTE_NICHT_ANZEIGEN',serialize(array('iar', 'nz')));
+
+// Docsbox configs
+define('DOCSBOX_SERVER', 'http://docconverter.technikum-wien.at/');
+define('DOCSBOX_PATH_API', 'api/v1/');
+define('DOCSBOX_CONVERSION_TIMEOUT', 30); // seconds
+define('DOCSBOX_WAITING_SLEEP_TIME', 1);
+
 ?>
+
