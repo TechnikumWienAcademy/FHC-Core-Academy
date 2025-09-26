@@ -2776,5 +2776,118 @@ class lehrveranstaltung extends basis_db
 		return null;
 	}
 
+	/**
+	 * Prueft ob die Lehrveranstaltungen in dem Studiensemestern angeboten wird.
+	 * Dazu wird geprueft ob die LVs einem aktuellen Studienplan zugeordnet ist und ob ein Lehrauftrag vorhanden ist.
+	 *
+	 * @param $lehrveranstaltung_id
+	 * @param $studiensemester_kurzbz
+	 * @return array
+	 */
+	public function getOfferedSemester($lehrveranstaltung_id, $studiensemester_kurzbz)
+	{
+		$qry = "SELECT
+					DISTINCT(studiensemester_kurzbz)
+				FROM
+					lehre.tbl_lehreinheit
+				WHERE lehrveranstaltung_id = ".$this->db_add_param($lehrveranstaltung_id)."
+				AND studiensemester_kurzbz IN (".$this->db_implode4SQL($studiensemester_kurzbz).")
+				AND EXISTS (
+					SELECT
+						*
+					FROM
+						lehre.tbl_studienplan_lehrveranstaltung
+						JOIN lehre.tbl_studienplan_semester USING(studienplan_id)
+					WHERE
+						lehrveranstaltung_id=".$this->db_add_param($lehrveranstaltung_id)."
+						AND studiensemester_kurzbz IN (".$this->db_implode4SQL($studiensemester_kurzbz).")
+					)";
+
+		$studiensemester = [];
+		if($result = $this->db_query($qry))
+		{
+			while($row = $this->db_fetch_object($result))
+			{
+				$studiensemester[] = $row;
+			}
+			return $studiensemester;
+		}
+		else
+		{
+			$this->errormsg = 'Fehler beim Laden der Daten';
+			return false;
+		}
+	}
+
+	/**
+	 * Prueft ob die Lehrveranstaltungen in den gewaehlten Studiensemestern angeboten wird.
+	 * Dazu wird geprueft ob die LVs einem aktuellen Studienplan zugeordnet ist, und ob ein Lehrauftrag vorhanden ist.
+	 *
+	 * @param $lehrveranstaltung_id
+	 * @param $studiensemester_kurzbz
+	 * @return array
+	 */
+	public function getOfferedLVs($lehrveranstaltung_id, $studiensemester_kurzbz)
+	{
+		$qry = "SELECT
+					DISTINCT(tbl_lehreinheit.lehrveranstaltung_id)
+				FROM
+					lehre.tbl_lehreinheit
+				WHERE tbl_lehreinheit.lehrveranstaltung_id IN (".$this->db_implode4SQL($lehrveranstaltung_id).")
+				AND tbl_lehreinheit.studiensemester_kurzbz IN (".$this->db_implode4SQL($studiensemester_kurzbz).")
+				AND EXISTS (
+					SELECT
+						*
+					FROM
+						lehre.tbl_studienplan_lehrveranstaltung
+						JOIN lehre.tbl_studienplan_semester USING(studienplan_id)
+					WHERE
+						tbl_lehreinheit.lehrveranstaltung_id IN (".$this->db_implode4SQL($lehrveranstaltung_id).")
+						AND tbl_lehreinheit.studiensemester_kurzbz IN (".$this->db_implode4SQL($studiensemester_kurzbz).")
+					)";
+
+		$lehrveranstaltungen = [];
+		if($result = $this->db_query($qry))
+		{
+			while($row = $this->db_fetch_object($result))
+			{
+				$lehrveranstaltungen[] = $row;
+			}
+			return $lehrveranstaltungen;
+		}
+		else
+		{
+			$this->errormsg = 'Fehler beim Laden der Daten';
+			return false;
+		}
+	}
+
+	public function getStudienplanLehrveranstaltung($lehrveranstaltung_id, $studienplan_id)
+	{
+		$qry = "SELECT studienplan_lehrveranstaltung_id
+				FROM lehre.tbl_lehrveranstaltung
+				JOIN lehre.tbl_studienplan_lehrveranstaltung USING(lehrveranstaltung_id)
+				WHERE lehrveranstaltung_id = ".$this->db_add_param($lehrveranstaltung_id)."
+					AND tbl_studienplan_lehrveranstaltung.studienplan_id = ".$this->db_add_param($studienplan_id);"";
+
+		if($result = $this->db_query($qry))
+		{
+			if($row = $this->db_fetch_object($result))
+			{
+				return $row->studienplan_lehrveranstaltung_id;
+			}
+			else
+			{
+				$this->errormsg = 'Fehler beim Ermitteln der studienplan_lehrveranstaltung_id';
+				return false;
+			}
+		}
+		else
+		{
+			$this->errormsg='Fehler bei Datenbankabfrage ' .$this->db_last_error();
+		}
+		return null;
+
+	}
 }
 ?>

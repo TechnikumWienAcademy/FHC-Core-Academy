@@ -38,6 +38,14 @@ require_once('../../include/authentication.class.php');
 require_once('../../include/addon.class.php');
 require_once('../../include/'.EXT_FKT_PATH.'/serviceterminal.inc.php');
 
+// 2025-02-05 ma0080 add query parameter to force login e.g. when used in iframe in CIS4.0 begin
+if( isset($_GET['forcelogin']) && !isset($_SERVER['PHP_AUTH_USER']) ) {
+  header('WWW-Authenticate: Basic Realm="' . AUTH_NAME . '"');
+  http_response_code(401);
+  die();
+}
+// 2025-02-05 ma0080 add query parameter to force login e.g. when used in iframe in CIS4.0 end
+
 	if (!$db = new basis_db())
 		$db=false;
 
@@ -214,7 +222,7 @@ $refreshtime = ($sdtools?99999:(isset($_SESSION[constSESSIONNAME]["uid"]) && !em
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta http-equiv="pragma" content="no-cache">
 <meta http-equiv="expires" content="-1">
-<script type="text/javascript" src="../../vendor/jquery/jqueryV1/jquery-1.12.4.min.js"></script>
+<script type="text/javascript" src="../../vendor/jquery/jquery1/jquery-1.12.4.min.js"></script>
 <script type="text/javascript" src="../../vendor/components/jqueryui/jquery-ui.min.js"></script>
 <script type="text/javascript" src="../../vendor/christianbach/tablesorter/jquery.tablesorter.min.js"></script>
 <script type="text/javascript" src="../../include/js/jquery.ui.datepicker.translation.js"></script>

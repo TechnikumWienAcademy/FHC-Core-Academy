@@ -695,15 +695,16 @@ function loadLVKompatibilitaet(lvid)
 	}).success(function(data)
 	{
 		var html='';
+		html = html+'<a href="lehrveranstaltung_kompatibel_vergleichen.php" target="_blank">kompatible Lehrveranstaltungen vergleichen</a><br><br>';
+		html = html+'<a href="lehrveranstaltung_kompatibel.php?lehrveranstaltung_id='+lvid+'&type=edit" target="_blank">kompatible Lehrveranstaltungen hinzufügen</a><br>';
 		for(i in data.result)
 		{
 			if(data.result[i])
 			{
 				lvdata = data.result[i];
 				if(!(lvdata.kurzbz===null && lvdata.bezeichnung===null && lvdata.studiengang_kz===null && lvdata.semester===null))
-					html = html+'<br>'+lvdata.kurzbz+' - '+lvdata.bezeichnung+' (Studiengang '+lvdata.studiengang_kz+', Semester '+lvdata.semester+')';
+					html = html+'<br>'+lvdata.kurzbz+' - '+lvdata.bezeichnung+' (Studiengang '+lvdata.studiengang_kz+', Semester '+lvdata.semester+')<br>';
 			}
-			html = html+'<br><br><a href="lehrveranstaltung_kompatibel.php?lehrveranstaltung_id='+lvid+'&type=edit" target="_blank">kompatible Lehrveranstaltungen hinzufügen</a>';
 		}
 		$("#tab-kompatibel").html(html);
 
@@ -1180,6 +1181,7 @@ function saveJsondataFromTree(nodeId, studienplan_id, studienplan_lehrveranstalt
 	{
 		if(d.error!==undefined && d.error=='false')
 		{
+			node.attr("lvid", d.result[0].lehrveranstaltung_id);
 			node.attr("studienplan_lehrveranstaltung_id", d.result[0].studienplan_lehrveranstaltung_id);
 			node.attr("id", d.result[0].studienplan_lehrveranstaltung_id);
 			$("#jsonData").html(d);

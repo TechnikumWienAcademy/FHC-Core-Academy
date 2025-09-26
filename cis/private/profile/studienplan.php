@@ -69,6 +69,8 @@ if(isset($_GET['getAnmeldung']))
 
 	$lehrveranstaltung_id=$_GET['lehrveranstaltung_id'];
 	$stsem = $_GET['stsem'];
+	$semester = $_GET['semester'];
+	$studienplan_id = $_GET['studienplan_id'];
 
 	echo $p->t('studienplan/LehrveranstalungWaehlen').'
 		<form action="'.$_SERVER['PHP_SELF'].'?uid='.$db->convert_html_chars($uid).'" method="POST">
@@ -83,6 +85,10 @@ if(isset($_GET['getAnmeldung']))
 	$datum = new datum();
 	$kompatibel[]=$lehrveranstaltung_id;
 	$kompatibel = array_unique($kompatibel);
+	$stsem_obj = new studiensemester();
+	$aktornext = $stsem_obj->getaktorNext();
+
+	$lvregel = new lvregel();
 	foreach($kompatibel as $lvid)
 	{
 		$lvangebot = new  lvangebot();
@@ -95,20 +101,58 @@ if(isset($_GET['getAnmeldung']))
 			$angebot = $lvangebot->result[0];
 			if($angebot->AnmeldungMoeglich())
 			{
-				$anzahl++;
-				// LV wird angeboten und Anmeldefenster ist offen
+				$kompatible_lv = $lehrveranstaltung->getStudienplanLehrveranstaltung($lvid, $studienplan_id);
 
-				$bngruppe = new benutzergruppe();
-				if(!$bngruppe->load($uid, $lvangebot->result[0]->gruppe_kurzbz, $stsem))
+				$lvregelExists = false;
+				$abgeschlossen = false;
+				$semesterlock = false;
+				$regelerfuellt = true;
+				if ($kompatible_lv)
 				{
-					// User ist noch nicht angemeldet
-					echo '<br><input type="radio" value="'.$lvid.'" name="lv"/>'.$lv->bezeichnung.' (Anmeldung bis '.$datum->formatDatum($angebot->anmeldefenster_ende,"d.m.Y").')';
+					$lvregelExists = $lvregel->exists($kompatible_lv);
+					if($lvregelExists)
+					{
+						if($lvregel->isAbgeschlossen($uid, $kompatible_lv))
+							$abgeschlossen=true;
+						else
+							$abgeschlossen=false;
+					}
+
+					if(!$lvregel->checkSemester($kompatible_lv, $semester))
+					{
+						$semesterlock=true;
+					}
+					else
+					{
+						if($stsem === $aktornext)
+						{
+							$result = $lvregel->isZugangsberechtigt($uid, $kompatible_lv, $stsem);
+							if((is_array($result)) && ($result[0] !== true))
+							{
+								$regelerfuellt=false;
+							}
+						}
+					}
 				}
-				else
+
+				if (!(($lvregelExists && !$abgeschlossen) || $semesterlock || !$regelerfuellt))
 				{
-					// Bereits angemeldet
-					echo '<br><input type="radio" disabled="true" value="'.$lvid.'" name="lv" /><span class="ok">'.$lv->bezeichnung.'</span><img src="../../../skin/images/information.png" title="'.$p->t('studienplan/bereitsAngemeldet').'"/>';
+					$anzahl++;
+					// LV wird angeboten und Anmeldefenster ist offen
+
+					$bngruppe = new benutzergruppe();
+					if(!$bngruppe->load($uid, $lvangebot->result[0]->gruppe_kurzbz, $stsem))
+					{
+						// User ist noch nicht angemeldet
+						echo '<br><input type="radio" value="'.$lvid.'" name="lv"/>'.$lv->bezeichnung.' (Anmeldung bis '.$datum->formatDatum($angebot->anmeldefenster_ende,"d.m.Y").')';
+					}
+					else
+					{
+						// Bereits angemeldet
+						echo '<br><input type="radio" disabled="true" value="'.$lvid.'" name="lv" /><span class="ok">'.$lv->bezeichnung.'</span><img src="../../../skin/images/information.png" title="'.$p->t('studienplan/bereitsAngemeldet').'"/>';
+					}
 				}
+
 			}
 /*			else
 			{
@@ -133,7 +177,7 @@ echo '<!DOCTYPE html>
 	<link rel="stylesheet" href="../../../skin/style.css.php" />
 	<link rel="stylesheet" href="../../../skin/jquery.css" />
 	<link rel="stylesheet" href="../../../skin/jquery-ui-1.9.2.custom.min.css" />
-	<script type="text/javascript" src="../../../vendor/jquery/jqueryV1/jquery-1.12.4.min.js"></script>
+	<script type="text/javascript" src="../../../vendor/jquery/jquery1/jquery-1.12.4.min.js"></script>
 	<script type="text/javascript" src="../../../vendor/christianbach/tablesorter/jquery.tablesorter.min.js"></script>
 	<script type="text/javascript" src="../../../vendor/components/jqueryui/jquery-ui.min.js"></script>
 	<script type="text/javascript" src="../../../include/js/jquery.ui.datepicker.translation.js"></script>
@@ -170,9 +214,9 @@ echo '
 		$("#dialog").dialog({ autoOpen: false, width: "auto" });
 	});
 
-	function OpenAnmeldung(lehrveranstaltung_id, stsem)
+	function OpenAnmeldung(lehrveranstaltung_id, stsem, semester, studienplan_id)
 	{
-		$("#dialog").load("studienplan.php?getAnmeldung=true&lehrveranstaltung_id="+lehrveranstaltung_id+"&stsem="+stsem+"&uid='.$db->convert_html_chars($uid).'");
+		$("#dialog").load("studienplan.php?getAnmeldung=true&lehrveranstaltung_id="+lehrveranstaltung_id+"&stsem="+stsem+"&semester="+semester+"&studienplan_id="+studienplan_id+"&uid='.$db->convert_html_chars($uid).'");
 		$("#dialog").dialog("open");
 	}
 	</script>
@@ -359,7 +403,7 @@ drawTree($tree,0);
 
 function drawTree($tree, $depth)
 {
-	global $uid, $stsem_arr, $noten_arr, $lvangebot_arr, $aktornext;
+	global $uid, $stsem_arr, $noten_arr, $lvangebot_arr, $aktornext, $studienplan_id;
 	global $datum_obj, $db, $lv_arr, $p, $note_pruef_arr, $student;
 	global $anrechnung;
 
@@ -639,12 +683,12 @@ function drawTree($tree, $depth)
 						$tdclass[]='angebot';
 						if($angemeldet)
 						{
-							$tdinhalt.= '<a href="#" onclick="OpenAnmeldung(\''.$row_tree->lehrveranstaltung_id.'\',\''.$stsem.'\'); return false;"><img src="../../../skin/images/ja.png" title="'.$p->t('studienplan/legendeAngemeldet').'" /></a>';
+							$tdinhalt.= '<a href="#" onclick="OpenAnmeldung(\''.$row_tree->lehrveranstaltung_id.'\',\''.$stsem.'\',\''.$semester.'\',\''.$studienplan_id.'\'); return false;"><img src="../../../skin/images/ja.png" title="'.$p->t('studienplan/legendeAngemeldet').'" /></a>';
 						}
 						else
 						{
 							if($anmeldungmoeglich)
-								$tdinhalt.= '<a href="#" onclick="OpenAnmeldung(\''.$row_tree->lehrveranstaltung_id.'\',\''.$stsem.'\'); return false;"><img src="../../../skin/images/anmelden.png" title="'.$p->t('studienplan/anmelden').'" height="15px" /></a>';
+								$tdinhalt.= '<a href="#" onclick="OpenAnmeldung(\''.$row_tree->lehrveranstaltung_id.'\',\''.$stsem.'\', \''.$semester.'\', \''.$studienplan_id.'\'); return false;"><img src="../../../skin/images/anmelden.png" title="'.$p->t('studienplan/anmelden').'" height="15px" /></a>';
 							else
 								$tdinhalt.= '<span title="'.$anmeldeinformation.'">-</a>';
 
